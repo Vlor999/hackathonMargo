@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Carte de la France et Grenoble</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <style>
+        #map {
+            height: 500px;
+            width: 100%;
+        }
+    </style>
+</head>
+<body>
+
+    <h1>Carte interactive</h1>
+    <div id="map"></div>
+
+    <script>
+        // Initialiser la carte centrée sur la France
+        var map = L.map('map').setView([46.603354, 1.888334], 6);
+
+        // Ajouter une couche OpenStreetMap
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '&copy; OpenStreetMap contributors'
+        }).addTo(map);
+
+        // Ajouter un marqueur sur Grenoble
+        var grenobleMarker = L.marker([45.188529, 5.724524]).addTo(map)
+            .bindPopup("<b>Grenoble</b><br>Une belle ville entourée de montagnes !")
+            .openPopup();
+    </script>
+
+</body>
+</html>
