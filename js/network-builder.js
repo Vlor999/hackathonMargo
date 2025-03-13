@@ -9,40 +9,322 @@ const bikeNetwork = {};
 const footpathNetwork = {};
 const multimodalNetwork = {};
 
+// Nouvelle fonction pour charger les données en morceaux, sans bloquer l'interface
+async function loadNetworkInChunks(fichier, type, progressCallback = null, optimize = false) {
+    try {
+        console.log(`Début du chargement ${fichier}`);
+        
+        // Charger les données JSON
+        const response = await fetch(fichier);
+        if (!response.ok) {
+            throw new Error(`Erreur HTTP: ${response.status}`);
+        }
+        
+        const data = await response.json();
+        if (!data.features || !Array.isArray(data.features)) {
+            throw new Error("Format de données invalide");
+        }
+        
+        // Échantillonner et simplifier les données pour les transports en commun
+        let features = data.features;
+        if (type === 'transport') {
+            console.log("Simplification du réseau de transport...");
+            
+            // Réduire le nombre de points pour les lignes de transport
+            const isLineString = feature => feature.geometry && feature.geometry.type === 'LineString';
+            const isPoint = feature => feature.geometry && feature.geometry.type === 'Point';
+            
+            // Garder tous les points (arrêts) mais simplifier et filtrer les lignes
+            const points = features.filter(isPoint);
+            let lines = features.filter(isLineString);
+            
+            // Optimisation plus agressive si demandée
+            if (optimize) {
+                console.log("Optimisation agressive du réseau de transport");
+                
+                // Réduction encore plus agressive - garder 1 point sur 10
+                lines = lines.map(feature => {
+                    if (feature.geometry && feature.geometry.coordinates.length > 5) {
+                        feature.geometry.coordinates = feature.geometry.coordinates.filter((_, i) => 
+                            i % 10 === 0 || i === feature.geometry.coordinates.length - 1);
+                    }
+                    return feature;
+                });
+                
+                // Ne garder que les lignes principales
+                const mainLines = ['A', 'B', 'C', 'D', 'E', 'C1', 'C2', 'C3', 'C4', 'C5', 'C6'];
+                lines = lines.filter(feature => 
+                    feature.properties && 
+                    feature.properties.ref && 
+                    mainLines.includes(feature.properties.ref)
+                );
+                
+                // Limiter le nombre de points d'arrêt
+                // Prendre un échantillon d'arrêts pour chaque ligne
+                const sampledPoints = points.filter((_, i) => i % 3 === 0);
+                
+                console.log(`Réduction drastique du réseau: ${sampledPoints.length} arrêts (${Math.round(sampledPoints.length/points.length*100)}%), ${lines.length} lignes`);
+                features = [...sampledPoints, ...lines];
+            } else {
+                // Réduction standard - garder 1 point sur 5
+                lines = lines.map(feature => {
+                    if (feature.geometry && feature.geometry.coordinates.length > 10) {
+                        feature.geometry.coordinates = feature.geometry.coordinates.filter((_, i) => 
+                            i % 5 === 0 || i === feature.geometry.coordinates.length - 1);
+                    }
+                    return feature;
+                });
+                
+                // Filtrage par importance - ignorer les lignes sans références ou noms
+                lines = lines.filter(feature => 
+                    feature.properties && 
+                    (feature.properties.ref || feature.properties.name)
+                );
+                
+                features = [...points, ...lines];
+            }
+            
+            console.log(`Réseau de transport simplifié: ${features.length} features (${points.length} arrêts, ${lines.length} segments)`);
+        }
+        
+        const totalFeatures = features.length;
+        console.log(`${totalFeatures} features à traiter`);
+        
+        // Traiter les données par morceaux
+        // Augmenter encore plus la taille des chunks pour le transport
+        const CHUNK_SIZE = type === 'transport' ? 5000 : 1000;
+        const DELAY = 0; // Pas de délai pour maximiser la performance
+        
+        return new Promise((resolve, reject) => {
+            let processed = 0;
+            
+            function processChunk() {
+                const start = processed;
+                const end = Math.min(processed + CHUNK_SIZE, totalFeatures);
+                
+                // Traiter un morceau de données
+                for (let i = start; i < end; i++) {
+                    const feature = features[i];
+                    if (type === 'routier') {
+                        buildNetworkFromFeature(feature, roadNetwork, bikeNetwork, footpathNetwork);
+                    } else if (type === 'transport') {
+                        buildTransitNetworkFromFeature(feature, transitNetwork);
+                    }
+                }
+                
+                processed = end;
+                const progress = processed / totalFeatures;
+                
+                if (progressCallback) {
+                    progressCallback(progress);
+                }
+                
+                if (processed < totalFeatures) {
+                    // Continuer avec le prochain morceau, en laissant respirer l'interface
+                    setTimeout(processChunk, DELAY);
+                } else {
+                    // Terminé
+                    console.log(`Traitement de ${fichier} terminé (${totalFeatures} features)`);
+                    resolve();
+                }
+            }
+            
+            // Démarrer le traitement
+            processChunk();
+        });
+    } catch (error) {
+        console.error(`Erreur lors du chargement de ${fichier}:`, error);
+        throw error;
+    }
+}
+
+// Fonctions pour la mise en cache des réseaux
+function serializeNetworks() {
+    // Crée une représentation simplifiée des réseaux pour le stockage
+    return {
+        road: Object.keys(roadNetwork).length,
+        bike: Object.keys(bikeNetwork).length,
+        foot: Object.keys(footpathNetwork).length,
+        transit: Object.keys(transitNetwork).length,
+        multimodal: Object.keys(multimodalNetwork).length,
+        roadNetwork,
+        transitNetwork,
+        bikeNetwork,
+        footpathNetwork,
+        multimodalNetwork
+    };
+}
+
+function deserializeNetworks(data) {
+    // Restaure les réseaux depuis la représentation sauvegardée
+    if (!data) return false;
+    
+    try {
+        // Copier les données dans les réseaux actuels
+        Object.assign(roadNetwork, data.roadNetwork || {});
+        Object.assign(bikeNetwork, data.bikeNetwork || {});
+        Object.assign(footpathNetwork, data.footpathNetwork || {});
+        Object.assign(transitNetwork, data.transitNetwork || {});
+        Object.assign(multimodalNetwork, data.multimodalNetwork || {});
+        
+        console.log(`Réseaux restaurés: route(${Object.keys(roadNetwork).length}), vélo(${Object.keys(bikeNetwork).length}), piéton(${Object.keys(footpathNetwork).length}), transport(${Object.keys(transitNetwork).length}), multimodal(${Object.keys(multimodalNetwork).length})`);
+        
+        return true;
+    } catch (e) {
+        console.error("Erreur lors de la désérialisation des réseaux:", e);
+        return false;
+    }
+}
+
+// Fonction pour sérialiser uniquement les réseaux de base (sans transport)
+function serializeBasicNetworks() {
+    return {
+        road: Object.keys(roadNetwork).length,
+        bike: Object.keys(bikeNetwork).length,
+        foot: Object.keys(footpathNetwork).length,
+        roadNetwork,
+        bikeNetwork,
+        footpathNetwork
+    };
+}
+
+// Fonction pour sérialiser uniquement le réseau de transport
+function serializeTransitNetwork() {
+    return {
+        transit: Object.keys(transitNetwork).length,
+        multimodal: Object.keys(multimodalNetwork).length,
+        transitNetwork,
+        multimodalNetwork
+    };
+}
+
+// Fonction pour désérialiser uniquement les réseaux de base
+function deserializeBasicNetworks(data) {
+    if (!data) return false;
+    
+    try {
+        // Copier les données dans les réseaux actuels
+        Object.assign(roadNetwork, data.roadNetwork || {});
+        Object.assign(bikeNetwork, data.bikeNetwork || {});
+        Object.assign(footpathNetwork, data.footpathNetwork || {});
+        
+        console.log(`Réseaux de base restaurés: route(${Object.keys(roadNetwork).length}), vélo(${Object.keys(bikeNetwork).length}), piéton(${Object.keys(footpathNetwork).length})`);
+        
+        return true;
+    } catch (e) {
+        console.error("Erreur lors de la désérialisation des réseaux de base:", e);
+        return false;
+    }
+}
+
+// Fonction pour désérialiser uniquement le réseau de transport
+function deserializeTransitNetwork(data) {
+    if (!data) return false;
+    
+    try {
+        // Copier les données dans les réseaux de transport
+        Object.assign(transitNetwork, data.transitNetwork || {});
+        Object.assign(multimodalNetwork, data.multimodalNetwork || {});
+        
+        console.log(`Réseau de transport restauré: transport(${Object.keys(transitNetwork).length}), multimodal(${Object.keys(multimodalNetwork).length})`);
+        
+        return true;
+    } catch (e) {
+        console.error("Erreur lors de la désérialisation du réseau de transport:", e);
+        return false;
+    }
+}
+
+// Fonction pour nettoyer les anciens caches qui peuvent provoquer des erreurs de quota
+function cleanupOldCaches() {
+    try {
+        // Supprimer les anciens formats de cache
+        localStorage.removeItem('margo_basic_networks');
+        localStorage.removeItem('margo_transit_network');
+        
+        // Nettoyer les entrées du cache qui dépassent 2 jours
+        const now = Date.now();
+        const twoDays = 2 * 24 * 60 * 60 * 1000;
+        
+        const basicTimestamp = parseInt(localStorage.getItem('margo_networks_timestamp') || '0');
+        const transitTimestamp = parseInt(localStorage.getItem('margo_transit_timestamp') || '0');
+        
+        if (now - basicTimestamp > twoDays) {
+            // Nettoyer le cache des réseaux de base
+            const basicChunks = parseInt(localStorage.getItem('margo_basic_networks_chunks') || '0');
+            for (let i = 0; i < basicChunks; i++) {
+                localStorage.removeItem(`margo_basic_networks_chunk_${i}`);
+            }
+            localStorage.removeItem('margo_basic_networks_chunks');
+            localStorage.removeItem('margo_networks_timestamp');
+            console.log("Cache des réseaux de base nettoyé (expiré)");
+        }
+        
+        if (now - transitTimestamp > twoDays) {
+            // Nettoyer le cache du réseau de transport
+            const transitChunks = parseInt(localStorage.getItem('margo_transit_chunks') || '0');
+            for (let i = 0; i < transitChunks; i++) {
+                localStorage.removeItem(`margo_transit_chunk_${i}`);
+            }
+            localStorage.removeItem('margo_transit_chunks');
+            localStorage.removeItem('margo_transit_timestamp');
+            console.log("Cache du réseau de transport nettoyé (expiré)");
+        }
+    } catch (e) {
+        console.warn("Erreur lors du nettoyage des caches:", e);
+    }
+}
+
+// Fonction pour nettoyer complètement le cache
+function clearAllCaches() {
+    try {
+        // Supprimer tous les caches existants
+        console.log("Nettoyage complet du cache...");
+        
+        // Supprimer les caches basiques
+        const basicChunks = parseInt(localStorage.getItem('margo_basic_networks_chunks') || '0');
+        for (let i = 0; i < basicChunks; i++) {
+            localStorage.removeItem(`margo_basic_networks_chunk_${i}`);
+        }
+        localStorage.removeItem('margo_basic_networks_chunks');
+        
+        // Supprimer les caches de transport
+        const transitChunks = parseInt(localStorage.getItem('margo_transit_chunks') || '0');
+        for (let i = 0; i < transitChunks; i++) {
+            localStorage.removeItem(`margo_transit_chunk_${i}`);
+        }
+        localStorage.removeItem('margo_transit_chunks');
+        localStorage.removeItem('margo_transit_timestamp');
+        
+        // Supprimer les anciens formats
+        localStorage.removeItem('margo_basic_networks');
+        localStorage.removeItem('margo_transit_network');
+        
+        console.log("Cache nettoyé avec succès");
+    } catch (e) {
+        console.error("Erreur lors du nettoyage du cache:", e);
+    }
+}
+
+// Appeler le nettoyage au chargement
+clearAllCaches();
+cleanupOldCaches();
+
 // Chargement des données GeoJSON
 function ajoutDataMap(fichier, randomColor, lineRadius = 5, lineWeight = 2) {
     return fetch(fichier)
     .then(response => response.json())
     .then(data => {
-        // Vérifier que la carte est initialisée
-        const map = window.mapInit.getMap();
-        if (!map) {
-            console.error("Carte non initialisée lors du chargement des données");
-            return data;
-        }
+        console.log(`Chargement des données ${fichier} réussi`);
         
-        const layer = L.geoJSON(data, {
-            style: function (feature) {
-                let color = randomColor ? utils.getRandomColor() : "black";
-                return {
-                    color: color,
-                    weight: lineWeight 
-                };
-            },
-            pointToLayer: function (feature, latlng) {
-                return L.circleMarker(latlng, {
-                    radius: lineRadius
-                });
-            },
-            onEachFeature: function(feature, layer) {
-                // Construction du réseau
-                if (fichier.includes('grenoble.geojson')) {
-                    buildNetworkFromFeature(feature, roadNetwork, bikeNetwork, footpathNetwork);
-                } else if (fichier.includes('transport_commun')) {
-                    buildTransitNetworkFromFeature(feature, transitNetwork);
-                }
+        // Ne plus ajouter de couches à la carte, juste construire le réseau
+        data.features.forEach(feature => {
+            if (fichier.includes('grenoble.geojson')) {
+                buildNetworkFromFeature(feature, roadNetwork, bikeNetwork, footpathNetwork);
+            } else if (fichier.includes('transport_commun')) {
+                buildTransitNetworkFromFeature(feature, transitNetwork);
             }
-        }).addTo(map);
+        });
         
         return data;
     })
@@ -206,57 +488,111 @@ function buildTransitNetworkFromFeature(feature, transitNet) {
 }
 
 // Fonction pour construire un réseau multimodal combinant marche et transport en commun
-function buildMultimodalNetwork() {
-    console.time('build-multimodal');
+function buildMultimodalNetwork(optimize = false) {
+    try {
+        console.time('build-multimodal');
+    } catch (e) {
+        // Timer peut déjà exister, ignorer l'erreur
+    }
     
-    // Copier les réseaux de base dans le réseau multimodal
+    // Réinitialiser le réseau multimodal
+    Object.keys(multimodalNetwork).forEach(key => {
+        delete multimodalNetwork[key];
+    });
+    
+    // Copier les métadonnées du réseau de transport
+    if (transitNetwork.stations) multimodalNetwork.stations = transitNetwork.stations;
+    if (transitNetwork.lines) multimodalNetwork.lines = transitNetwork.lines;
+    
+    // Optimisation 1: Copier par référence directe les réseaux de base
+    // Pour le réseau piéton et transport en commun
     for (const nodeStr in footpathNetwork) {
-        if (!multimodalNetwork[nodeStr]) multimodalNetwork[nodeStr] = {};
-        for (const neighborStr in footpathNetwork[nodeStr]) {
-            multimodalNetwork[nodeStr][neighborStr] = footpathNetwork[nodeStr][neighborStr];
-        }
+        multimodalNetwork[nodeStr] = Object.assign({}, footpathNetwork[nodeStr]);
     }
     
     for (const nodeStr in transitNetwork) {
-        if (nodeStr === 'stations' || nodeStr === 'lines') continue; // Ignorer les métadonnées
+        if (nodeStr === 'stations' || nodeStr === 'lines') continue;
         
-        if (!multimodalNetwork[nodeStr]) multimodalNetwork[nodeStr] = {};
-        for (const neighborStr in transitNetwork[nodeStr]) {
-            multimodalNetwork[nodeStr][neighborStr] = transitNetwork[nodeStr][neighborStr];
+        if (!multimodalNetwork[nodeStr]) {
+            multimodalNetwork[nodeStr] = {};
         }
+        Object.assign(multimodalNetwork[nodeStr], transitNetwork[nodeStr]);
     }
     
-    // Créer des connexions entre les stations de transport et les points de marche proches
-    // pour permettre les changements de mode
-    const MAX_WALKING_DISTANCE = 0.002; // Distance max de marche pour atteindre une station
+    // Optimisation 2: Réduire encore plus le nombre de connexions stations-piétons
+    const MAX_WALKING_DISTANCE = optimize ? 0.001 : 0.002; // Réduire à 100m pour l'optimisation agressive
+    const MAX_CONNECTIONS_PER_STATION = optimize ? 2 : 3;  // Limiter à 2 connexions par station
+    let connectionsCount = 0;
     
-    // Pour chaque station de transport
     if (transitNetwork.stations) {
-        for (const stationStr in transitNetwork.stations) {
-            const stationCoords = utils.stringToCoord(stationStr);
+        console.log(`Optimisation des connexions pour ${Object.keys(transitNetwork.stations).length} stations`);
+        
+        // Optimisation 3: Traiter les stations par lots pour éviter le blocage de l'interface
+        const stationKeys = Object.keys(transitNetwork.stations);
+        const BATCH_SIZE = 100;
+        
+        for (let i = 0; i < stationKeys.length; i += BATCH_SIZE) {
+            const batchStations = stationKeys.slice(i, i + BATCH_SIZE);
             
-            // Vérifier les points accessibles à pied
-            for (const footNodeStr in footpathNetwork) {
-                const footNodeCoords = utils.stringToCoord(footNodeStr);
-                const distance = utils.calculateDistance(stationCoords, footNodeCoords);
+            for (const stationStr of batchStations) {
+                const stationCoords = utils.stringToCoord(stationStr);
                 
-                // Si la distance est raisonnable, créer une connexion piéton <-> station
-                if (distance < MAX_WALKING_DISTANCE) {
-                    // Temps de marche estimé (5 km/h)
-                    const walkingTimeCost = distance * 720;
+                // Optimisation 4: Utiliser une grille spatiale pour limiter la recherche
+                const nearbyFootNodes = [];
+                const searchBounds = {
+                    minLng: stationCoords[0] - MAX_WALKING_DISTANCE,
+                    maxLng: stationCoords[0] + MAX_WALKING_DISTANCE,
+                    minLat: stationCoords[1] - MAX_WALKING_DISTANCE,
+                    maxLat: stationCoords[1] + MAX_WALKING_DISTANCE
+                };
+                
+                // Uniquement rechercher dans les nœuds qui sont dans cette grille approximative
+                for (const footNodeStr in footpathNetwork) {
+                    const footNodeCoords = utils.stringToCoord(footNodeStr);
                     
-                    // Ajouter une connexion bidirectionnelle avec un coût de temps de marche
+                    if (footNodeCoords[0] >= searchBounds.minLng && 
+                        footNodeCoords[0] <= searchBounds.maxLng && 
+                        footNodeCoords[1] >= searchBounds.minLat && 
+                        footNodeCoords[1] <= searchBounds.maxLat) {
+                        
+                        const distance = utils.calculateDistance(stationCoords, footNodeCoords);
+                        if (distance < MAX_WALKING_DISTANCE) {
+                            nearbyFootNodes.push({
+                                node: footNodeStr,
+                                distance: distance
+                            });
+                        }
+                    }
+                }
+                
+                // Trier par distance et garder uniquement les 3 plus proches
+                nearbyFootNodes.sort((a, b) => a.distance - b.distance);
+                const closestNodes = nearbyFootNodes.slice(0, MAX_CONNECTIONS_PER_STATION);
+                
+                // Ajouter les connexions
+                for (const {node: footNodeStr, distance} of closestNodes) {
+                    // Distance en km approximative et temps de marche estimé
+                    const distanceKm = distance * 111.32;
+                    const walkingTimeCost = (distanceKm / 5) * 3600;
+                    
                     if (!multimodalNetwork[stationStr]) multimodalNetwork[stationStr] = {};
                     if (!multimodalNetwork[footNodeStr]) multimodalNetwork[footNodeStr] = {};
                     
                     multimodalNetwork[stationStr][footNodeStr] = walkingTimeCost;
                     multimodalNetwork[footNodeStr][stationStr] = walkingTimeCost;
+                    
+                    connectionsCount++;
                 }
             }
         }
     }
     
-    console.timeEnd('build-multimodal');
+    console.log(`${connectionsCount} connexions piéton-station optimisées`);
+    try {
+        console.timeEnd('build-multimodal');
+    } catch (e) {
+        // Ignorer l'erreur si le timer n'existe pas
+    }
     console.log(`Réseau multimodal construit: ${Object.keys(multimodalNetwork).length} nœuds`);
 }
 
@@ -264,7 +600,7 @@ function buildMultimodalNetwork() {
 function simplifyNetwork(network, startNode, endNode) {
     if (!startNode || !endNode) return network;
     
-    // Convertir les coordonnées des nœuds de départ et d'arrivée
+    // Convertir les coordonnées des nœuds de départ et d'arrivées
     const startCoords = utils.stringToCoord(startNode);
     const endCoords = utils.stringToCoord(endNode);
     
@@ -301,7 +637,6 @@ function simplifyNetwork(network, startNode, endNode) {
                      neighborCoords[1] >= minLat && neighborCoords[1] <= maxLat) || 
                      utils.calculateDistance(neighborCoords, startCoords) < 0.01 || 
                      utils.calculateDistance(neighborCoords, endCoords) < 0.01) {
-                    
                     simplifiedNetwork[nodeStr][neighborStr] = network[nodeStr][neighborStr];
                 }
             }
@@ -313,7 +648,6 @@ function simplifyNetwork(network, startNode, endNode) {
     if (!simplifiedNetwork[endNode]) simplifiedNetwork[endNode] = network[endNode] || {};
     
     console.log(`Réseau simplifié: ${Object.keys(simplifiedNetwork).length} nœuds (original: ${Object.keys(network).length})`);
-    
     return simplifiedNetwork;
 }
 
@@ -321,6 +655,7 @@ function simplifyNetwork(network, startNode, endNode) {
 function findNearestNode(latLng, network) {
     let minDist = Infinity;
     let nearestNode = null;
+    let minRadius = 0.01; // Limite de distance de recherche (environ 1km)
     
     // Parcourir tous les nœuds du réseau
     for (const nodeStr in network) {
@@ -329,10 +664,30 @@ function findNearestNode(latLng, network) {
         const nodeCoord = utils.stringToCoord(nodeStr);
         const distance = utils.calculateDistance([latLng.lng, latLng.lat], nodeCoord);
         
-        if (distance < minDist) {
+        if (distance < minDist && distance < minRadius) {
             minDist = distance;
             nearestNode = nodeStr;
         }
+    }
+    
+    // Si aucun nœud proche n'est trouvé, essayer de chercher dans un rayon plus large
+    if (!nearestNode) {
+        for (const nodeStr in network) {
+            if (nodeStr === 'stations' || nodeStr === 'lines') continue;
+            
+            const nodeCoord = utils.stringToCoord(nodeStr);
+            const distance = utils.calculateDistance([latLng.lng, latLng.lat], nodeCoord);
+            
+            if (distance < minDist) {
+                minDist = distance;
+                nearestNode = nodeStr;
+            }
+        }
+    }
+    
+    // S'assurer que le nœud trouvé a bien des voisins
+    if (nearestNode && Object.keys(network[nearestNode] || {}).length === 0) {
+        console.warn(`Nœud sans connections trouvé: ${nearestNode}`);
     }
     
     return nearestNode;
@@ -348,5 +703,13 @@ window.networkBuilder = {
     ajoutDataMap,
     buildMultimodalNetwork,
     simplifyNetwork,
-    findNearestNode
+    findNearestNode,
+    loadNetworkInChunks,
+    serializeNetworks,
+    deserializeNetworks,
+    serializeBasicNetworks,
+    serializeTransitNetwork,
+    deserializeBasicNetworks,
+    deserializeTransitNetwork,
+    clearAllCaches
 };

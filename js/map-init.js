@@ -10,28 +10,40 @@ const markers = {
 };
 let line = null;
 
+// Initialiser immédiatement si le DOM est déjà chargé
+if (document.readyState === 'complete' || document.readyState === 'interactive') {
+    initMap();
+} else {
+    // Sinon attendre le chargement du DOM
+    document.addEventListener('DOMContentLoaded', initMap);
+}
+
 // Fonction d'initialisation de la carte
 function initMap() {
-    // Vérifier que l'élément map existe
-    const mapElement = document.getElementById('map');
-    if (!mapElement) {
-        console.error("Élément map non trouvé dans le DOM");
-        return;
-    }
-    
-    // Initialisation de la carte Leaflet centrée sur Grenoble
-    map = L.map('map').setView([45.188529, 5.724524], 13);
+    try {
+        // Vérifier que l'élément map existe
+        const mapElement = document.getElementById('map');
+        if (!mapElement) {
+            console.error("Élément map non trouvé dans le DOM");
+            return;
+        }
+        
+        // Initialisation de la carte Leaflet centrée sur Grenoble
+        map = L.map('map').setView([45.188529, 5.724524], 13);
 
-    // Ajout de la couche de tuiles OpenStreetMap
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-    }).addTo(map);
-    
-    // Ajouter les géocodeurs pour le départ et l'arrivée
-    addGeocoder('depart', 'blue', 'depart');
-    addGeocoder('arriver', 'red', 'arriver');
-    
-    console.log("Carte initialisée avec succès");
+        // Ajout de la couche de tuiles OpenStreetMap
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+        }).addTo(map);
+        
+        // Ajouter les géocodeurs pour le départ et l'arrivée
+        addGeocoder('depart', 'blue', 'depart');
+        addGeocoder('arriver', 'red', 'arriver');
+        
+        console.log("Carte initialisée avec succès");
+    } catch (error) {
+        console.error("Erreur lors de l'initialisation de la carte:", error);
+    }
 }
 
 // Fonction pour ajouter un géocodeur à la carte
@@ -69,14 +81,11 @@ function toggleTheme() {
     }
 }
 
-// Initialiser après chargement du DOM
-document.addEventListener('DOMContentLoaded', initMap);
-
 // Export des objets et fonctions
 window.mapInit = {
-    getMap: () => map,
-    markers,
-    line,
-    toggleTheme,
-    initMap
+    getMap: function() { return map; },
+    markers: markers,
+    line: line,
+    toggleTheme: toggleTheme,
+    initMap: initMap
 };

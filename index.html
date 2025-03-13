@@ -8,6 +8,23 @@
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
     <link rel="stylesheet" href="https://unpkg.com/leaflet-control-geocoder/dist/Control.Geocoder.css" />
     <link rel="stylesheet" href="style.css">
+    
+    <!-- Bibliothèques externes -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://unpkg.com/leaflet-control-geocoder/dist/Control.Geocoder.js"></script>
+    
+    <!-- Modules de l'application - Respecter l'ordre de chargement -->
+    <script src="js/utils.js"></script>
+    <script src="js/pathfinder.js"></script>
+    <script src="js/map-init.js"></script>
+    <script src="js/geocoding.js"></script>
+    <script src="js/network-builder.js"></script>
+    <script src="js/path-display.js"></script>
+    <script src="js/directions-display.js"></script>
+    <script src="js/routing-core.js"></script>
+    <script src="js/transport-api.js"></script>
+    <script src="js/ui-controls.js"></script>
+    <script src="js/main.js"></script>
 </head>
 <body>
     <div id="map"></div>
@@ -21,42 +38,5 @@
         <button id="drawLineButton">Trouver le chemin</button>
         <button id="toggleThemeButton">Mode Sombre</button>
     </div>
-    
-    <div id="map-legend" class="map-legend">
-        <h4>Légende</h4>
-        <div class="legend-item">
-            <div class="legend-color" style="background-color: blue;"></div>
-            <span>Voiture / À pied dans itinéraire multimodal</span>
-        </div>
-        <div class="legend-item">
-            <div class="legend-color" style="background-color: green;"></div>
-            <span>Vélo</span>
-        </div>
-        <div class="legend-item">
-            <div class="legend-color" style="background-color: orange;"></div>
-            <span>À pied</span>
-        </div>
-        <div class="legend-item">
-            <div class="legend-color" style="background-color: red;"></div>
-            <span>Transport en commun</span>
-        </div>
-    </div>
-
-    <!-- Bibliothèques externes -->
-    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-    <script src="https://unpkg.com/leaflet-control-geocoder/dist/Control.Geocoder.js"></script>
-    
-    <!-- Script original (pour la compatibilité) -->
-    <script src="script.js"></script>
-    
-    <!-- Modules de l'application -->
-    <script src="js/utils.js"></script>
-    <script src="js/pathfinder.js"></script>
-    <script src="js/map-init.js"></script>
-    <script src="js/network-builder.js"></script>
-    <script src="js/transport-api.js"></script>
-    <script src="js/routing.js"></script>
-    <script src="js/ui-controls.js"></script>
-    <script src="js/main.js"></script>
 </body>
 </html>
