@@ -3,38 +3,29 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Carte de Grenoble</title>
+    <title>Carte de Grenoble - Calcul de trajet</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-    <style>
-        /* Supprime les marges et fait en sorte que la carte prenne tout l'écran */
-        html, body {
-            height: 100%;
-            margin: 0;
-            padding: 0;
-        }
-        #map {
-            height: 100vh; /* Hauteur égale à toute la fenêtre */
-            width: 100vw; /* Largeur égale à toute la fenêtre */
-        }
-    </style>
+    
+    <!-- Leaflet Control Geocoder -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet-control-geocoder/dist/Control.Geocoder.css" />
+    <script src="https://unpkg.com/leaflet-control-geocoder/dist/Control.Geocoder.js"></script>
+
+    <link rel="stylesheet" href="style.css">
 </head>
 <body>
-
     <div id="map"></div>
 
-    <script>
+    <div id="search-container">
+        <input type="text" id="start-location" placeholder="Départ">
+        <input type="text" id="end-location" placeholder="Arrivée">
+        <button onclick="calculateRoute()">Calculer</button>
+    </div>
 
-        var map = L.map('map').setView([45.188529, 5.724524], 13);
+    <div id="theme-toggle-button">
+        <button id="theme-toggle-button">Toggle Theme</button>
+    </div>
 
-        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-            attribution: '&copy; OpenStreetMap contributors'
-        }).addTo(map);
-
-        L.marker([45.188529, 5.724524]).addTo(map)
-            .bindPopup("<b>Grenoble</b><br>Une belle ville entourée de montagnes !")
-            .openPopup();
-    </script>
-
+    <script src="script.js"></script>
 </body>
 </html>
