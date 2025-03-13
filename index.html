@@ -15,10 +15,17 @@
 <body>
     <div id="map"></div>
     <div id="controls">
-        <button id="drawLineButton">Tracer la ligne</button>
+        <select id="transportMode">
+            <option value="car">Voiture</option>
+            <option value="bike">Vélo</option>
+            <option value="foot">À pied</option>
+            <option value="transit">Transport en commun</option>
+        </select>
+        <button id="drawLineButton">Trouver le chemin</button>
         <button id="toggleThemeButton">Mode Sombre</button>
     </div>
 
+    <script src="pathfinder.js"></script>
     <script src="script.js"></script>
 </body>
 </html>
