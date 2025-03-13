@@ -2,98 +2,19 @@ html, body {
     height: 100%;
     margin: 0;
     padding: 0;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    font-family: Arial, sans-serif;
-}
-
-body {
-    background-color: var(--background-color);
-    color: var(--text-color);
-    transition: background-color 0.3s, color 0.3s;
 }
 
 #map {
     height: 100vh;
     width: 100vw;
-    position: absolute;
-    top: 0;
-    left: 0;
-}
-
-#search-container {
-    position: absolute;
-    top: 10px;
-    left: 50%;
-    transform: translateX(-50%);
-    background: var(--container-background);
-    padding: 15px;
-    box-shadow: 0px 4px 10px rgba(0, 0, 0, 0.1);
-    z-index: 1000;
-    display: flex;
-    gap: 10px;
-    border-radius: 10px;
-    align-items: center; /* Align items vertically center */
 }
 
 input {
-    padding: 10px;
+    padding: 5px;
     border: 1px solid #ccc;
-    border-radius: 5px;
-    outline: none;
-    flex: 1;
 }
 
 button {
-    padding: 10px 20px;
+    padding: 5px 10px;
     cursor: pointer;
-    border-radius: 5px;
-    border: none;
-    background-color: var(--button-background);
-    color: var(--button-text-color);
-    font-weight: bold;
-    transition: background-color 0.3s;
-}
-
-#theme-toggle-button {
-    position: absolute;
-    top: 10px;
-    right: 10px;
-    padding: 10px 20px;
-    cursor: pointer;
-    border-radius: 5px;
-    border: none;
-    background-color: var(--button-background);
-    color: var(--button-text-color);
-    font-weight: bold;
-    transition: background-color 0.3s;
-    z-index: 1000; /* Assurez-vous qu'il est au-dessus des autres éléments */
-}
-
-#theme-toggle-button:hover,
-button:hover {
-    background-color: var(--button-hover-background);
-}
-
-/* Light theme */
-[data-theme="light"],
-:root:not([data-theme="dark"]) {
-    --background-color: #ffffff;
-    --text-color: #000000;
-    --container-background: #ffffff;
-    --button-background: #007BFF;
-    --button-text-color: #ffffff;
-    --button-hover-background: #0056b3;
-}
-
-/* Dark theme */
-[data-theme="dark"],
-:root:not([data-theme="light"]) {
-    --background-color: #121212;
-    --text-color: #ffffff;
-    --container-background: #1e1e1e;
-    --button-background: #1a73e8;
-    --button-text-color: #ffffff;
-    --button-hover-background: #135ba1;
 }
