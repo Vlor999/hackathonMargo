@@ -1,11 +1,14 @@
 #! /usr/bin/env python3
 
-from mtagAPI.exemple import giveJsonFile
+from mtagAPI.recupData import giveJsonFile, getStopNamePos
 
 
 def main():
     name = "A"
-    giveJsonFile(name)
+    file = giveJsonFile(name)
+    data = getStopNamePos(file)
+    for station in data:
+        print(station)
 
 if __name__ == "__main__":
     main() 

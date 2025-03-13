@@ -6,7 +6,7 @@ html, body {
 }
 
 #map {
-    height: 100vh;
+    height: 90vh;
     width: 100vw;
     border-radius: 10px;
 }
@@ -29,4 +29,41 @@ button {
 
 button:hover {
     background-color: #0056b3;
+}
+
+#controls {
+    position: absolute;
+    top: 10px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 1000;
+    background: white;
+    padding: 10px;
+    border-radius: 5px;
+    box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+}
+
+/* Styles pour le mode sombre */
+body.dark-mode {
+    background-color: #121212;
+    color: #ffffff;
+}
+
+body.dark-mode #controls {
+    background: #333333;
+    color: #ffffff;
+}
+
+body.dark-mode button {
+    background-color: #444444;
+}
+
+body.dark-mode button:hover {
+    background-color: #555555;
+}
+
+body.dark-mode input {
+    background-color: #333333;
+    color: #ffffff;
+    border: 1px solid #555555;
 }

@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Carte de Grenoble - Calcul de trajet</title>
+    <title>Carte avec tracé de ligne</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     
@@ -13,13 +13,10 @@
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
-
     <div id="map"></div>
-    <div id="coordinates"></div>
-
-    <div>
-        <button id="startButton">Départ</button>
-        <button id="endButton">Arrivée</button>
+    <div id="controls">
+        <button id="drawLineButton">Tracer la ligne</button>
+        <button id="toggleThemeButton">Mode Sombre</button>
     </div>
 
     <script src="script.js"></script>
