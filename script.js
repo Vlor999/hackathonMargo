@@ -6,17 +6,25 @@ L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
     attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
 }).addTo(map);
 
-// Ajout du contrôle de géocodage
 
-function addGeocoder(buttonId, markerColor) {
+var markers = {
+    depart: null,
+    arriver: null
+};
+
+function addGeocoder(buttonId, markerColor, markerKey) {
     var geocoder = L.Control.geocoder({
         defaultMarkGeocode: false
     })
     .on('markgeocode', function(e) {
         var latlng = e.geocode.center;
         console.log('Latitude: ' + latlng.lat + ', Longitude: ' + latlng.lng);
-        
-        L.marker(latlng, { icon: L.icon({
+
+        if (markers[markerKey]) {
+            map.removeLayer(markers[markerKey]);
+        }
+
+        markers[markerKey] = L.marker(latlng, { icon: L.icon({
             iconUrl: `http://maps.google.com/mapfiles/ms/icons/${markerColor}-dot.png`,
             iconSize: [32, 32],
             iconAnchor: [16, 32],
@@ -28,5 +36,5 @@ function addGeocoder(buttonId, markerColor) {
     .addTo(map);
 }
 
-addGeocoder('depart', 'blue');
-addGeocoder('arriver', 'red');
+addGeocoder('depart', 'blue', 'depart');
+addGeocoder('arriver', 'red', 'arriver');
