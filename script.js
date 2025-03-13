@@ -7,23 +7,26 @@ L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
 }).addTo(map);
 
 // Ajout du contrôle de géocodage
-var geocoder = L.Control.geocoder({
-    defaultMarkGeocode: false
-})
-.on('markgeocode', function(e) {
-    var bbox = e.geocode.bbox;
-    var poly = L.polygon([
-        bbox.getSouthEast(),
-        bbox.getNorthEast(),
-        bbox.getNorthWest(),
-        bbox.getSouthWest()
-    ]).addTo(map);
-    map.fitBounds(poly.getBounds());
 
-    var latlng = e.geocode.center;
-    console.log('Latitude: ' + latlng.lat + ', Longitude: ' + latlng.lng);
-})
-.addTo(map);
+function addGeocoder(buttonId, markerColor) {
+    var geocoder = L.Control.geocoder({
+        defaultMarkGeocode: false
+    })
+    .on('markgeocode', function(e) {
+        var latlng = e.geocode.center;
+        console.log('Latitude: ' + latlng.lat + ', Longitude: ' + latlng.lng);
+        
+        L.marker(latlng, { icon: L.icon({
+            iconUrl: `http://maps.google.com/mapfiles/ms/icons/${markerColor}-dot.png`,
+            iconSize: [32, 32],
+            iconAnchor: [16, 32],
+            popupAnchor: [0, -32]
+        })}).addTo(map)
+            .bindPopup(`<b>${e.geocode.name}</b><br>Latitude: ${latlng.lat}<br>Longitude: ${latlng.lng}`)
+            .openPopup();
+    })
+    .addTo(map);
+}
 
-
-
+addGeocoder('depart', 'blue');
+addGeocoder('arriver', 'red');
